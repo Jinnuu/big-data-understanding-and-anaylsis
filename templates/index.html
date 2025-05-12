@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmcast - 기온 예측</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        select, button {
+            padding: 8px;
+            font-size: 16px;
+        }
+        #result {
+            margin-top: 20px;
+        }
+        #plot {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #plot img {
+            max-width: 100%;
+            height: auto;
+        }
+        .temp-type-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+        }
+        .temp-type-btn {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .temp-type-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .temp-type-btn:hover {
+            background-color: #45a049;
+            color: white;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .prediction-result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Farmcast</h1>
+            <p>지역별 기온 예측 서비스</p>
+        </header>
+        
+        <main>
+            <div class="temp-type-container">
+                <h3>기온 유형 선택</h3>
+                <button class="temp-type-btn active" data-type="average">평균 기온</button>
+                <button class="temp-type-btn" data-type="min">최저 기온</button>
+                <button class="temp-type-btn" data-type="max">최고 기온</button>
+            </div>
+
+            <div class="map-container">
+                <img src="{{ url_for('static', filename='map.jpg') }}" 
+                     alt="한국 지도" 
+                     class="map-img"
+                     onerror="this.style.display='none'; this.parentElement.innerHTML += '<div class=\'map-error\'><h3>지도 이미지를 불러올 수 없습니다</h3><p>지역 버튼을 사용하여 예측을 시작하세요</p></div>';">
+                <!-- 지역 버튼들 -->
+                <button class="loc-btn" data-loc="서울" style="left:200px;top:110px;">서울</button>
+                <button class="loc-btn" data-loc="인천" style="left:130px;top:90px;">인천</button>
+                <button class="loc-btn" data-loc="춘천" style="left:320px;top:100px;">춘천</button>
+                <button class="loc-btn" data-loc="경주" style="left:415px;top:305px;">경주</button>
+                <button class="loc-btn" data-loc="대구" style="left:340px;top:300px;">대구</button>
+                <button class="loc-btn" data-loc="광주" style="left:170px;top:380px;">광주</button>
+                <button class="loc-btn" data-loc="부산" style="left:370px;top:380px;">부산</button>
+                <button class="loc-btn" data-loc="울산" style="left:400px;top:350px;">울산</button>
+                <button class="loc-btn" data-loc="전주" style="left:210px;top:320px;">전주</button>
+                <button class="loc-btn" data-loc="제주" style="left:270px;top:500px;">제주</button>
+            </div>
+            
+            <div class="result-container">
+                <div class="loading" style="display:none;">
+                    <div class="spinner"></div>
+                    <p>예측 중입니다...</p>
+                </div>
+                <div class="prediction-result" style="display:none;">
+                    <h2>예측 결과</h2>
+                    <div class="result-text"></div>
+                    <div class="result-plot"></div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>© 2024 Farmcast. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        let selectedLocation = null;
+        let selectedTempType = 'average';
+
+        // 온도 유형 버튼 이벤트 처리
+        document.querySelectorAll('.temp-type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 모든 버튼에서 active 클래스 제거
+                document.querySelectorAll('.temp-type-btn').forEach(b => b.classList.remove('active'));
+                // 클릭된 버튼에 active 클래스 추가
+                this.classList.add('active');
+                selectedTempType = this.dataset.type;
+                
+                // 이미 지역이 선택되어 있다면 예측 실행
+                if (selectedLocation) {
+                    getPrediction(selectedLocation, selectedTempType);
+                }
+            });
+        });
+
+        // 지역 버튼 이벤트 처리
+        document.querySelectorAll('.loc-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                selectedLocation = this.dataset.loc;
+                getPrediction(selectedLocation, selectedTempType);
+            });
+        });
+
+        async function getPrediction(location, tempType) {
+            const loading = document.querySelector('.loading');
+            const predictionResult = document.querySelector('.prediction-result');
+            const resultText = document.querySelector('.result-text');
+            const resultPlot = document.querySelector('.result-plot');
+            
+            // 로딩 표시
+            loading.style.display = 'block';
+            predictionResult.style.display = 'none';
+            resultText.innerHTML = '';
+            resultPlot.innerHTML = '';
+            
+            try {
+                const formData = new FormData();
+                formData.append('location', location);
+                formData.append('temp_type', tempType);
+                
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultText.innerHTML = `<p style="color: red;">에러: ${data.error}</p>`;
+                } else {
+                    resultText.innerHTML = data.result;
+                    resultPlot.innerHTML = `<img src="${data.plot_url}" alt="기온 예측 그래프">`;
+                }
+                
+                // 결과 표시
+                predictionResult.style.display = 'block';
+            } catch (error) {
+                resultText.innerHTML = `<p style="color: red;">에러가 발생했습니다: ${error.message}</p>`;
+                predictionResult.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
