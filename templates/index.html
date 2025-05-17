@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Farmcast - 기온 예측</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         body {
@@ -15,7 +16,7 @@
         .form-group {
             margin-bottom: 15px;
         }
-        select, button {
+        select {
             padding: 8px;
             font-size: 16px;
         }
@@ -78,6 +79,40 @@
             background-color: #f9f9f9;
             border-radius: 8px;
         }
+        .map-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background-color: white;
+            margin: 0 auto;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .region-label {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            pointer-events: none;
+            margin-top: -20px;
+        }
+        .zoom-level {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.9em;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -96,21 +131,8 @@
             </div>
 
             <div class="map-container">
-                <img src="{{ url_for('static', filename='map.jpg') }}" 
-                     alt="한국 지도" 
-                     class="map-img"
-                     onerror="this.style.display='none'; this.parentElement.innerHTML += '<div class=\'map-error\'><h3>지도 이미지를 불러올 수 없습니다</h3><p>지역 버튼을 사용하여 예측을 시작하세요</p></div>';">
-                <!-- 지역 버튼들 -->
-                <button class="loc-btn" data-loc="서울" style="left:200px;top:110px;">서울</button>
-                <button class="loc-btn" data-loc="인천" style="left:130px;top:90px;">인천</button>
-                <button class="loc-btn" data-loc="춘천" style="left:320px;top:100px;">춘천</button>
-                <button class="loc-btn" data-loc="경주" style="left:415px;top:305px;">경주</button>
-                <button class="loc-btn" data-loc="대구" style="left:340px;top:300px;">대구</button>
-                <button class="loc-btn" data-loc="광주" style="left:170px;top:380px;">광주</button>
-                <button class="loc-btn" data-loc="부산" style="left:370px;top:380px;">부산</button>
-                <button class="loc-btn" data-loc="울산" style="left:400px;top:350px;">울산</button>
-                <button class="loc-btn" data-loc="전주" style="left:210px;top:320px;">전주</button>
-                <button class="loc-btn" data-loc="제주" style="left:270px;top:500px;">제주</button>
+                <div id="map"></div>
+                <div class="zoom-level">확대 수준: <span id="zoom-value">7</span></div>
             </div>
             
             <div class="result-container">
@@ -131,31 +153,124 @@
         </footer>
     </div>
 
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let selectedLocation = null;
         let selectedTempType = 'average';
+        let map;
+        let regions = {};
+
+        // 지도 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            // 한국 영역 경계 정의
+            const southWest = L.latLng(33.0, 124.0);
+            const northEast = L.latLng(39.0, 132.0);
+            const bounds = L.latLngBounds(southWest, northEast);
+
+            map = L.map('map', {
+                minZoom: 7,
+                maxZoom: 11,
+                maxBounds: bounds,
+                maxBoundsViscosity: 1.0
+            }).setView([36.5, 127.5], 7);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // 확대 수준 표시 업데이트
+            map.on('zoomend', function() {
+                document.getElementById('zoom-value').textContent = map.getZoom();
+            });
+
+            // 지역 정보 정의
+            const locations = {
+                '서울': { 
+                    center: [37.5665, 126.9780],
+                    radius: 0.2
+                },
+                '인천': { 
+                    center: [37.4563, 126.7052],
+                    radius: 0.2
+                },
+                '춘천': { 
+                    center: [37.8813, 127.7300],
+                    radius: 0.2
+                },
+                '경주': { 
+                    center: [35.8562, 129.2247],
+                    radius: 0.2
+                },
+                '대구': { 
+                    center: [35.8714, 128.6014],
+                    radius: 0.2
+                },
+                '광주': { 
+                    center: [35.1595, 126.8526],
+                    radius: 0.2
+                },
+                '부산': { 
+                    center: [35.1796, 129.0756],
+                    radius: 0.2
+                },
+                '울산': { 
+                    center: [35.5384, 129.3114],
+                    radius: 0.2
+                },
+                '전주': { 
+                    center: [35.8242, 127.1480],
+                    radius: 0.2
+                },
+                '제주': { 
+                    center: [33.4996, 126.5312],
+                    radius: 0.2
+                }
+            };
+
+            // 각 지역에 원형 영역 추가
+            Object.entries(locations).forEach(([location, data]) => {
+                const circle = L.circle(data.center, {
+                    radius: data.radius * 50000, // 반경을 미터 단위로 변환
+                    color: '#3498db',
+                    fillColor: '#3498db',
+                    fillOpacity: 0.2,
+                    weight: 2,
+                    className: 'region-circle'
+                }).addTo(map);
+
+                // 클릭 이벤트
+                circle.on('click', function() {
+                    // 모든 지역 스타일 초기화
+                    Object.values(regions).forEach(region => {
+                        region.setStyle({
+                            fillColor: '#3498db',
+                            fillOpacity: 0.2
+                        });
+                    });
+
+                    // 선택된 지역 강조
+                    circle.setStyle({
+                        fillColor: '#e74c3c',
+                        fillOpacity: 0.4
+                    });
+
+                    selectedLocation = location;
+                    getPrediction(selectedLocation, selectedTempType);
+                });
+
+                regions[location] = circle;
+            });
+        });
 
         // 온도 유형 버튼 이벤트 처리
         document.querySelectorAll('.temp-type-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                // 모든 버튼에서 active 클래스 제거
                 document.querySelectorAll('.temp-type-btn').forEach(b => b.classList.remove('active'));
-                // 클릭된 버튼에 active 클래스 추가
                 this.classList.add('active');
                 selectedTempType = this.dataset.type;
-                
-                // 이미 지역이 선택되어 있다면 예측 실행
                 if (selectedLocation) {
                     getPrediction(selectedLocation, selectedTempType);
                 }
-            });
-        });
-
-        // 지역 버튼 이벤트 처리
-        document.querySelectorAll('.loc-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                selectedLocation = this.dataset.loc;
-                getPrediction(selectedLocation, selectedTempType);
             });
         });
 
@@ -165,7 +280,6 @@
             const resultText = document.querySelector('.result-text');
             const resultPlot = document.querySelector('.result-plot');
             
-            // 로딩 표시
             loading.style.display = 'block';
             predictionResult.style.display = 'none';
             resultText.innerHTML = '';
@@ -190,7 +304,6 @@
                     resultPlot.innerHTML = `<img src="${data.plot_url}" alt="기온 예측 그래프">`;
                 }
                 
-                // 결과 표시
                 predictionResult.style.display = 'block';
             } catch (error) {
                 resultText.innerHTML = `<p style="color: red;">에러가 발생했습니다: ${error.message}</p>`;
