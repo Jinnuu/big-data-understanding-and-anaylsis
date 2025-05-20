@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmcast - 기온 예측</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        select {
+            padding: 8px;
+            font-size: 16px;
+        }
+        #result {
+            margin-top: 20px;
+        }
+        #plot {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #plot img {
+            max-width: 100%;
+            height: auto;
+        }
+        .temp-type-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+        }
+        .temp-type-btn {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .temp-type-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .temp-type-btn:hover {
+            background-color: #45a049;
+            color: white;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .prediction-result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background-color: white;
+            margin: 20px auto;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .region-label {
+            background: none;
+            border: none;
+            box-shadow: none;
+            font-weight: bold;
+            color: #2c3e50;
+            text-shadow: 
+                -1px -1px 0 #fff,
+                1px -1px 0 #fff,
+                -1px 1px 0 #fff,
+                1px 1px 0 #fff;
+        }
+        .zoom-level {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.9em;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Farmcast</h1>
+            <p>지역별 기온 예측 서비스</p>
+            <a href="/crops" class="nav-button">작물 선택하기</a>
+        </header>
+
+        <main>
+            <div class="temp-type-container">
+                <h3>예측 유형 선택</h3>
+                <button class="temp-type-btn active" data-type="average">평균 기온</button>
+                <button class="temp-type-btn" data-type="min">최저 기온</button>
+                <button class="temp-type-btn" data-type="max">최고 기온</button>
+                <button class="temp-type-btn" data-type="rain">강수량</button>
+            </div>
+
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="zoom-level">확대 수준: <span id="zoom-value">7</span></div>
+            </div>
+
+            <div class="result-container">
+                <div class="loading" style="display:none;">
+                    <div class="spinner"></div>
+                    <p>예측 중입니다...</p>
+                </div>
+                <div class="prediction-result" style="display:none;">
+                    <h2>예측 결과</h2>
+                    <div class="result-text"></div>
+                    <div class="result-plot"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>© 2024 Farmcast. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let selectedLocation = null;
+        let selectedTempType = 'average';
+        let map;
+        let regions = {};
+
+        // 지도 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            // 한국 영역 경계 정의
+            const southWest = L.latLng(33.0, 124.0);
+            const northEast = L.latLng(39.0, 132.0);
+            const bounds = L.latLngBounds(southWest, northEast);
+
+            map = L.map('map', {
+                minZoom: 7,
+                maxZoom: 11,
+                maxBounds: bounds,
+                maxBoundsViscosity: 1.0
+            }).setView([36.5, 127.5], 7);
+
+            // Maptiler의 기본 지도
+            L.tileLayer('https://api.maptiler.com/maps/basic-v2/{z}/{x}/{y}.png?key=EP4lprdMQGW9QtIqYJqt', {
+                attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // 한국어 지명 레이어 추가
+            L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=EP4lprdMQGW9QtIqYJqt&lang=ko', {
+                maxZoom: 19,
+                opacity: 0.5
+            }).addTo(map);
+
+            // 확대 수준 표시 업데이트
+            map.on('zoomend', function() {
+                document.getElementById('zoom-value').textContent = map.getZoom();
+            });
+
+            // 각 지역에 원형 영역 추가
+            const locations = {
+                '서울': { 
+                    center: [37.5665, 126.9780],
+                    radius: 0.2
+                },
+                '인천': { 
+                    center: [37.4563, 126.7052],
+                    radius: 0.2
+                },
+                '춘천': { 
+                    center: [37.8813, 127.7300],
+                    radius: 0.2
+                },
+                '경주': { 
+                    center: [35.8562, 129.2247],
+                    radius: 0.2
+                },
+                '대구': { 
+                    center: [35.8714, 128.6014],
+                    radius: 0.2
+                },
+                '광주': { 
+                    center: [35.1595, 126.8526],
+                    radius: 0.2
+                },
+                '부산': { 
+                    center: [35.1796, 129.0756],
+                    radius: 0.2
+                },
+                '울산': { 
+                    center: [35.5384, 129.3114],
+                    radius: 0.2
+                },
+                '전주': { 
+                    center: [35.8242, 127.1480],
+                    radius: 0.2
+                },
+                '제주': { 
+                    center: [33.4996, 126.5312],
+                    radius: 0.2
+                }
+            };
+
+            Object.entries(locations).forEach(([location, data]) => {
+                const circle = L.circle(data.center, {
+                    radius: data.radius * 50000,
+                    color: '#2c3e50',
+                    fillColor: '#3498db',
+                    fillOpacity: 0.4,
+                    weight: 2,
+                    className: 'region-circle'
+                }).addTo(map);
+
+                // 클릭 이벤트
+                circle.on('click', function() {
+                    if (selectedLocation) {
+                        regions[selectedLocation].setStyle({
+                            fillColor: '#3498db',
+                            fillOpacity: 0.4
+                        });
+                    }
+                    selectedLocation = location;
+                    circle.setStyle({
+                        fillColor: '#e74c3c',
+                        fillOpacity: 0.6
+                    });
+                    predictWeather();
+                });
+
+                regions[location] = circle;
+            });
+
+            // 기온 유형 버튼 이벤트
+            document.querySelectorAll('.temp-type-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    document.querySelectorAll('.temp-type-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    selectedTempType = this.dataset.type;
+                    if (selectedLocation) {
+                        predictWeather();
+                    }
+                });
+            });
+        });
+
+        function predictWeather() {
+            if (!selectedLocation) return;
+
+            const loading = document.querySelector('.loading');
+            const result = document.querySelector('.prediction-result');
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            const endpoint = selectedTempType === 'rain' ? '/predict_rain' : '/predict';
+            const formData = new FormData();
+            formData.append('location', selectedLocation);
+            if (selectedTempType !== 'rain') {
+                formData.append('temp_type', selectedTempType);
+            }
+
+            fetch(endpoint, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                
+                if (data.error) {
+                    document.querySelector('.result-text').innerHTML = `<p class="error">${data.error}</p>`;
+                    return;
+                }
+
+                document.querySelector('.result-text').innerHTML = data.result;
+                document.querySelector('.result-plot').innerHTML = `<img src="${data.plot_url}" alt="예측 그래프">`;
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                document.querySelector('.result-text').innerHTML = `<p class="error">예측 중 오류가 발생했습니다: ${error}</p>`;
+            });
+        }
+    </script>
+</body>

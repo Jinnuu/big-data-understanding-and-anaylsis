@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmcast - 작물 선택</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .crop-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .crop-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+        .crop-card:hover {
+            transform: translateY(-5px);
+        }
+        .crop-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .crop-info {
+            padding: 15px;
+        }
+        .crop-name {
+            font-size: 1.5em;
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .crop-description {
+            color: #666;
+            margin: 0;
+        }
+        .selected {
+            border: 3px solid #4CAF50;
+        }
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            background: #f8f9fa;
+            margin-bottom: 20px;
+        }
+        .nav-button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 1em;
+        }
+        .nav-button:hover {
+            background: #45a049;
+        }
+        .nav-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Farmcast</h1>
+            <p>작물 선택</p>
+        </header>
+
+        <div class="navigation">
+            <a href="/" class="nav-button">지도로 돌아가기</a>
+            <button id="nextButton" class="nav-button" disabled>다음</button>
+        </div>
+
+        <div class="crop-container">
+            <div class="crop-card" data-crop="고추">
+                <img src="{{ url_for('static', filename='images/고추.jpg') }}" alt="고추" class="crop-image">
+                <div class="crop-info">
+                    <h2 class="crop-name">고추</h2>
+                    <p class="crop-description">한국의 대표적인 채소 작물로, 다양한 요리에 사용됩니다.</p>
+                </div>
+            </div>
+            <div class="crop-card" data-crop="벼">
+                <img src="{{ url_for('static', filename='images/벼.jpg') }}" alt="벼" class="crop-image">
+                <div class="crop-info">
+                    <h2 class="crop-name">벼</h2>
+                    <p class="crop-description">한국의 주요 식량 작물로, 쌀의 원료가 됩니다.</p>
+                </div>
+            </div>
+            <div class="crop-card" data-crop="토마토">
+                <img src="{{ url_for('static', filename='images/토마토.jpg') }}" alt="토마토" class="crop-image">
+                <div class="crop-info">
+                    <h2 class="crop-name">토마토</h2>
+                    <p class="crop-description">다양한 요리에 사용되는 인기 있는 채소 작물입니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedCrop = null;
+
+        document.querySelectorAll('.crop-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // 이전 선택 제거
+                document.querySelectorAll('.crop-card').forEach(c => c.classList.remove('selected'));
+                
+                // 새로운 선택
+                this.classList.add('selected');
+                selectedCrop = this.dataset.crop;
+                
+                // 다음 버튼 활성화
+                document.getElementById('nextButton').disabled = false;
+            });
+        });
+
+        document.getElementById('nextButton').addEventListener('click', function() {
+            if (selectedCrop) {
+                // 선택된 작물 정보를 URL 파라미터로 전달
+                window.location.href = `/?crop=${encodeURIComponent(selectedCrop)}`;
+            }
+        });
+    </script>
+</body>
+</html> 
