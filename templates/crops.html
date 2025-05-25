@@ -112,7 +112,9 @@
         document.querySelectorAll('.crop-card').forEach(card => {
             card.addEventListener('click', function() {
                 // 이전 선택 제거
-                document.querySelectorAll('.crop-card').forEach(c => c.classList.remove('selected'));
+                document.querySelectorAll('.crop-card').forEach(c => {
+                    c.classList.remove('selected');
+                });
                 
                 // 새로운 선택
                 this.classList.add('selected');
@@ -125,7 +127,6 @@
 
         document.getElementById('nextButton').addEventListener('click', function() {
             if (selectedCrop) {
-                // 선택된 작물 정보를 URL 파라미터로 전달
                 window.location.href = `/?crop=${encodeURIComponent(selectedCrop)}`;
             }
         });

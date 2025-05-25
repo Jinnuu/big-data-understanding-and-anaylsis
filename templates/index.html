@@ -165,9 +165,21 @@
         let selectedTempType = 'average';
         let map;
         let regions = {};
+        let selectedCrop = new URLSearchParams(window.location.search).get('crop');
+
+        // 작물이 선택되지 않았다면 작물 선택 페이지로 리다이렉트
+        if (!selectedCrop) {
+            window.location.href = '/crops';
+        }
 
         // 지도 초기화
         document.addEventListener('DOMContentLoaded', function() {
+            // 선택된 작물 표시
+            const cropInfo = document.createElement('div');
+            cropInfo.className = 'selected-crop-info';
+            cropInfo.innerHTML = `<h2>선택된 작물: ${selectedCrop}</h2>`;
+            document.querySelector('header').appendChild(cropInfo);
+
             // 한국 영역 경계 정의
             const southWest = L.latLng(33.0, 124.0);
             const northEast = L.latLng(39.0, 132.0);
@@ -324,3 +336,4 @@
         }
     </script>
 </body>
+</html>
