@@ -435,7 +435,6 @@ def save_last_prediction_date(location, date):
 def predict():
     try:
         location = request.form['location']
-        temp_type = request.form['temp_type']
         
         # 모델 파일 경로 확인
         temp_model_path = f'models/{location}_temp_model.pkl'
@@ -496,22 +495,19 @@ def predict():
         today = datetime.now().date()
         predicted_dates = [today + timedelta(days=i) for i in range(1, 8)]
         
-        # 선택된 기온 유형에 따른 인덱스 설정
-        temp_type_idx = {'average': 0, 'max': 1, 'min': 2}[temp_type]
-        temp_type_name = {'average': '평균', 'max': '최고', 'min': '최저'}[temp_type]
-        
-        # 결과 텍스트 생성
-        result_text = f"<h3>{location} 7일간 {temp_type_name} 기온 예측</h3><ul>"
+        # 결과 텍스트 생성 (모든 기온 정보 포함)
+        result_text = f"<h3>{location} 7일간 기온 예측</h3><ul>"
         for date, temps in zip(predicted_dates, predicted_temps):
-            result_text += f"<li>{date.strftime('%Y-%m-%d')}: {temps[temp_type_idx]:.1f}°C</li>"
+            result_text += f"<li>{date.strftime('%Y-%m-%d')}: 평균 {temps[0]:.1f}°C, 최고 {temps[1]:.1f}°C, 최저 {temps[2]:.1f}°C</li>"
         result_text += "</ul>"
         
         # 그래프 생성
-        plot_data = generate_plot(predicted_dates, predicted_temps, temp_type)
+        plot_data = generate_plot(predicted_dates, predicted_temps, 'average')
         
         return jsonify({
             'result': result_text,
-            'plot_url': f"data:image/png;base64,{plot_data}"
+            'plot_url': f"data:image/png;base64,{plot_data}",
+            'temperatures': predicted_temps.tolist()  # 모든 기온 정보 반환
         })
         
     except Exception as e:
@@ -579,7 +575,7 @@ def predict_rain():
             
             # 비가 안 오는 날로 예측되면 강수량을 0으로 설정
             final_pred = 0 if not will_rain else rain_pred[0, 0]
-            predicted_rains.append(final_pred)
+            predicted_rains.append([final_pred])  # 2차원 배열로 변경
             
             # 다음 예측을 위한 입력 시퀀스 업데이트
             new_input_rain = np.concatenate([rain_pred, next_date_features], axis=1)
@@ -589,21 +585,22 @@ def predict_rain():
             input_seq_binary = np.vstack([input_seq_binary[1:], new_input_binary])
         
         # 예측값 역스케일링
-        predicted_rain = rain_scalers['rain'].inverse_transform(np.array(predicted_rains).reshape(-1, 1)).flatten()
+        predicted_rain = rain_scalers['rain'].inverse_transform(np.array(predicted_rains))
         
         today = datetime.now().date()
         predicted_dates = [today + timedelta(days=i) for i in range(1, 8)]
         
         result_text = f"<h3>{location} 7일간 강수량 예측</h3><ul>"
         for date, rain in zip(predicted_dates, predicted_rain):
-            result_text += f"<li>{date.strftime('%Y-%m-%d')}: {rain:.1f}mm</li>"
+            result_text += f"<li>{date.strftime('%Y-%m-%d')}: {rain[0]:.1f}mm</li>"
         result_text += "</ul>"
         
-        plot_data = generate_rain_plot(predicted_dates, predicted_rain)
+        plot_data = generate_rain_plot(predicted_dates, predicted_rain.flatten())
         
         return jsonify({
             'result': result_text,
-            'plot_url': f"data:image/png;base64,{plot_data}"
+            'plot_url': f"data:image/png;base64,{plot_data}",
+            'temperatures': predicted_rain.tolist()  # 강수량 데이터를 temperatures 필드로 반환
         })
         
     except Exception as e:

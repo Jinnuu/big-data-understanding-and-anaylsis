@@ -3,12 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmcast - 작물 선택</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>작물 선택 - Farmcast</title>
     <style>
-        .crop-container {
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .crops-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 20px;
             padding: 20px;
         }
@@ -18,7 +36,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             overflow: hidden;
             transition: transform 0.3s ease;
-            cursor: pointer;
         }
         .crop-card:hover {
             transform: translateY(-5px);
@@ -32,103 +49,221 @@
             padding: 15px;
         }
         .crop-name {
-            font-size: 1.5em;
-            margin: 0 0 10px 0;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
             color: #2c3e50;
         }
-        .crop-description {
+        .crop-details {
+            font-size: 0.9em;
             color: #666;
-            margin: 0;
         }
-        .selected {
-            border: 3px solid #4CAF50;
+        .crop-details p {
+            margin: 5px 0;
         }
-        .navigation {
+        .nav-buttons {
             display: flex;
-            justify-content: space-between;
-            padding: 20px;
-            background: #f8f9fa;
-            margin-bottom: 20px;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
         }
         .nav-button {
+            display: inline-block;
             padding: 10px 20px;
-            background: #4CAF50;
+            background-color: #4CAF50;
             color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
             text-decoration: none;
-            font-size: 1em;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
         }
         .nav-button:hover {
-            background: #45a049;
-        }
-        .nav-button:disabled {
-            background: #cccccc;
-            cursor: not-allowed;
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Farmcast</h1>
-            <p>작물 선택</p>
+            <h1>작물 선택</h1>
+            <p>관심 있는 작물을 선택하여 날씨 영향을 확인하세요</p>
+            <div class="nav-buttons">
+                <a href="/crops" class="nav-button">작물 목록</a>
+            </div>
         </header>
-
-        <div class="navigation">
-            <a href="/" class="nav-button">지도로 돌아가기</a>
-            <button id="nextButton" class="nav-button" disabled>다음</button>
-        </div>
-
-        <div class="crop-container">
-            <div class="crop-card" data-crop="고추">
+        
+        <div class="crops-grid">
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/벼.jpg') }}" alt="쌀" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">쌀</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 35°C</p>
+                        <p>취약 저온: 15°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
                 <img src="{{ url_for('static', filename='images/고추.jpg') }}" alt="고추" class="crop-image">
                 <div class="crop-info">
-                    <h2 class="crop-name">고추</h2>
-                    <p class="crop-description">한국의 대표적인 채소 작물로, 다양한 요리에 사용됩니다.</p>
+                    <div class="crop-name">고추</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 30°C</p>
+                        <p>취약 저온: 15°C</p>
+                        <p>취약 강수량: 200mm</p>
+                    </div>
                 </div>
             </div>
-            <div class="crop-card" data-crop="벼">
-                <img src="{{ url_for('static', filename='images/벼.jpg') }}" alt="벼" class="crop-image">
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/배추.jpg') }}" alt="배추" class="crop-image">
                 <div class="crop-info">
-                    <h2 class="crop-name">벼</h2>
-                    <p class="crop-description">한국의 주요 식량 작물로, 쌀의 원료가 됩니다.</p>
+                    <div class="crop-name">배추</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 25°C</p>
+                        <p>취약 저온: 10°C</p>
+                        <p>취약 강수량: 200mm</p>
+                    </div>
                 </div>
             </div>
-            <div class="crop-card" data-crop="토마토">
-                <img src="{{ url_for('static', filename='images/토마토.jpg') }}" alt="토마토" class="crop-image">
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/사과.jpg') }}" alt="사과" class="crop-image">
                 <div class="crop-info">
-                    <h2 class="crop-name">토마토</h2>
-                    <p class="crop-description">다양한 요리에 사용되는 인기 있는 채소 작물입니다.</p>
+                    <div class="crop-name">사과</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 30°C</p>
+                        <p>취약 저온: 10°C</p>
+                        <p>취약 강수량: 200mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/감자.jpg') }}" alt="감자" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">감자</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 25°C</p>
+                        <p>취약 저온: 10°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/마늘.jpg') }}" alt="마늘" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">마늘</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 25°C</p>
+                        <p>취약 저온: 5°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/양파.jpg') }}" alt="양파" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">양파</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 25°C</p>
+                        <p>취약 저온: 5°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/참깨.jpg') }}" alt="참깨" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">참깨</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 35°C</p>
+                        <p>취약 저온: 10°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/옥수수.jpg') }}" alt="옥수수" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">옥수수</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 35°C</p>
+                        <p>취약 저온: 10°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/수박.jpg') }}" alt="수박" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">수박</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 35°C</p>
+                        <p>취약 저온: 15°C</p>
+                        <p>취약 강수량: 200mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/콩.jpg') }}" alt="콩" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">콩</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 35°C</p>
+                        <p>취약 저온: 15°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="crop-card">
+                <img src="{{ url_for('static', filename='images/고구마.jpg') }}" alt="고구마" class="crop-image">
+                <div class="crop-info">
+                    <div class="crop-name">고구마</div>
+                    <div class="crop-details">
+                        <p>취약 고온: 35°C</p>
+                        <p>취약 저온: 15°C</p>
+                        <p>취약 강수량: 150mm</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
     <script>
-        let selectedCrop = null;
-
-        document.querySelectorAll('.crop-card').forEach(card => {
-            card.addEventListener('click', function() {
-                // 이전 선택 제거
-                document.querySelectorAll('.crop-card').forEach(c => {
-                    c.classList.remove('selected');
+        document.addEventListener('DOMContentLoaded', function() {
+            const cropCards = document.querySelectorAll('.crop-card');
+            
+            cropCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const cropName = this.querySelector('.crop-name').textContent;
+                    const cropDetails = this.querySelector('.crop-details');
+                    const highTemp = cropDetails.querySelector('p:nth-child(1)').textContent.split(': ')[1];
+                    const lowTemp = cropDetails.querySelector('p:nth-child(2)').textContent.split(': ')[1];
+                    const rainfall = cropDetails.querySelector('p:nth-child(3)').textContent.split(': ')[1];
+                    
+                    // 작물 정보를 URL 파라미터로 전달
+                    const params = new URLSearchParams({
+                        crop: cropName,
+                        highTemp: highTemp,
+                        lowTemp: lowTemp,
+                        rainfall: rainfall
+                    });
+                    
+                    // 지도 페이지로 이동하면서 작물 정보 전달
+                    window.location.href = `/?${params.toString()}`;
                 });
                 
-                // 새로운 선택
-                this.classList.add('selected');
-                selectedCrop = this.dataset.crop;
-                
-                // 다음 버튼 활성화
-                document.getElementById('nextButton').disabled = false;
+                // 호버 효과를 위한 커서 스타일
+                card.style.cursor = 'pointer';
             });
-        });
-
-        document.getElementById('nextButton').addEventListener('click', function() {
-            if (selectedCrop) {
-                window.location.href = `/?crop=${encodeURIComponent(selectedCrop)}`;
-            }
         });
     </script>
 </body>
