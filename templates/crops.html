@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>작물 정보 - 기상 예측 시스템</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">기상 예측 시스템</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">홈</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/crops">작물 정보</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">주요 작물 정보</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>작물명</th>
+                                        <th>적정 생육 온도</th>
+                                        <th>취약 기온</th>
+                                        <th>취약 강수량</th>
+                                        <th>주요 재배 지역</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>벼</td>
+                                        <td>20~30°C</td>
+                                        <td>35°C 이상</td>
+                                        <td>300mm/일 이상</td>
+                                        <td>전라북도, 충청남도</td>
+                                    </tr>
+                                    <tr>
+                                        <td>보리</td>
+                                        <td>15~25°C</td>
+                                        <td>30°C 이상</td>
+                                        <td>200mm/일 이상</td>
+                                        <td>경기도, 충청북도</td>
+                                    </tr>
+                                    <tr>
+                                        <td>콩</td>
+                                        <td>20~30°C</td>
+                                        <td>35°C 이상</td>
+                                        <td>250mm/일 이상</td>
+                                        <td>강원도, 경상북도</td>
+                                    </tr>
+                                    <tr>
+                                        <td>옥수수</td>
+                                        <td>25~35°C</td>
+                                        <td>40°C 이상</td>
+                                        <td>200mm/일 이상</td>
+                                        <td>강원도, 경상북도</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">작물별 기상 취약성</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6>작물별 기상 취약성 정보</h6>
+                            <p>각 작물은 특정 기상 조건에서 생육에 영향을 받을 수 있습니다. 주요 취약성은 다음과 같습니다:</p>
+                            <ul>
+                                <li><strong>고온 취약성:</strong> 작물의 생육 적정 온도를 초과하는 경우</li>
+                                <li><strong>저온 취약성:</strong> 작물의 생육 적정 온도 미만인 경우</li>
+                                <li><strong>강수량 취약성:</strong> 과도한 강수로 인한 피해 가능성</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
