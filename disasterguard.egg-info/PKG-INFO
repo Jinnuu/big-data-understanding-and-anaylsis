@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: disasterguard
+Version: 0.1
+Requires-Dist: flask
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: tensorflow
+Requires-Dist: scikit-learn
+Requires-Dist: joblib
+Dynamic: requires-dist

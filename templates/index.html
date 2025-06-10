@@ -1,106 +1,91 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>기상 예측 시스템</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">기상 예측 시스템</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/">홈</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/crops">작물 정보</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+<!-- 
+    index.html
+    웹사이트의 메인 페이지
+    - 사용자에게 제공되는 첫 화면
+    - 주요 기능들에 대한 링크와 설명 포함
+    - 날씨 예측, 작물 예측 등의 서비스 소개
+-->
+{% extends "base.html" %}
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">예측 설정</h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="predictionForm">
-                            <div class="mb-3">
-                                <label for="location" class="form-label">지역 선택</label>
-                                <select class="form-select" id="location" name="location" required>
-                                    <option value="">지역을 선택하세요</option>
-                                </select>
+{% block title %}홈 - 기상 예측 시스템{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <!-- 주요 서비스 소개 -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">기상 예측 시스템</h2>
+                    <p class="card-text">농작물 재배에 필요한 날씨 정보와 작물 수확량을 예측하는 시스템입니다.</p>
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">날씨 예측</h5>
+                                    <p class="card-text">지역별 기온, 강수량 등 상세 날씨 정보를 예측합니다.</p>
+                                    <a href="/weather" class="btn btn-primary">날씨 예측하기</a>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="startDate" class="form-label">예측 시작일</label>
-                                <input type="text" class="form-control" id="startDate" name="startDate" required>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">작물 수확량 예측</h5>
+                                    <p class="card-text">작물별, 지역별 수확량을 예측하고 최적 재배 조건을 확인합니다.</p>
+                                    <a href="/crops_prediction" class="btn btn-primary">수확량 예측하기</a>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="endDate" class="form-label">예측 종료일</label>
-                                <input type="text" class="form-control" id="endDate" name="endDate" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary">예측하기</button>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">예측 결과</h5>
+        </div>
+
+        <!-- 최근 예측 결과 요약 -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">최근 날씨 예측</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentWeather" class="text-center">
+                        <p>최근 날씨 예측 결과가 여기에 표시됩니다.</p>
                     </div>
-                    <div class="card-body">
-                        <div id="predictionAlert" class="alert alert-info">
-                            지역을 선택하고 예측 기간을 설정한 후 예측하기 버튼을 클릭하세요.
-                        </div>
-                        <div id="predictionResults" style="display: none;">
-                            <h6 class="mb-3">예측 요약</h6>
-                            <div id="predictionSummary" class="mb-4"></div>
-                            <div class="row">
-                                <div class="col-12 mb-4">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6 class="card-title mb-0">기온 예측</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <canvas id="temperatureChart"></canvas>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6 class="card-title mb-0">강수량 예측</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <canvas id="rainfallChart"></canvas>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">최근 작물 예측</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentCrops" class="text-center">
+                        <p>최근 작물 수확량 예측 결과가 여기에 표시됩니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 날씨 경고 -->
+        <div class="col-md-12 mt-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">날씨 경고</h5>
+                </div>
+                <div class="card-body">
+                    <div id="weatherWarnings" class="text-center">
+                        <p>현재 발령된 날씨 경고가 여기에 표시됩니다.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
-</html>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+{% endblock %}

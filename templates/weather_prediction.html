@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}날씨 예측 - 기상 예측 시스템{% endblock %}
+
+{% block content %}
+<!-- 
+    weather_prediction.html
+    날씨 예측 페이지
+    - 사용자가 특정 지역의 날씨를 예측할 수 있는 인터페이스
+    - 지역 선택, 예측 기간 설정 등의 입력 폼 포함
+    - 예측 결과를 그래프와 표로 시각화
+    - 기온, 강수량 등의 날씨 정보 표시
+-->
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">날씨 예측 설정</h5>
+                </div>
+                <div class="card-body">
+                    <form id="predictionForm">
+                        <div class="mb-3">
+                            <label for="location" class="form-label">지역 선택</label>
+                            <select class="form-select" id="location" name="location" required>
+                                <option value="">지역을 선택하세요</option>
+                                <option value="강릉">강릉</option>
+                                <option value="강진군">강진군</option>
+                                <option value="강화">강화</option>
+                                <option value="거제">거제</option>
+                                <option value="거창">거창</option>
+                                <option value="경주시">경주시</option>
+                                <option value="고산">고산</option>
+                                <option value="고창군">고창군</option>
+                                <option value="고흥">고흥</option>
+                                <option value="광양시">광양시</option>
+                                <option value="광주">광주</option>
+                                <option value="구미">구미</option>
+                                <option value="군산">군산</option>
+                                <option value="금산">금산</option>
+                                <option value="남원">남원</option>
+                                <option value="남해">남해</option>
+                                <option value="대구">대구</option>
+                                <option value="대전">대전</option>
+                                <option value="동해">동해</option>
+                                <option value="목포">목포</option>
+                                <option value="밀양">밀양</option>
+                                <option value="부산">부산</option>
+                                <option value="부안">부안</option>
+                                <option value="부여">부여</option>
+                                <option value="보령">보령</option>
+                                <option value="보성군">보성군</option>
+                                <option value="보은">보은</option>
+                                <option value="봉화">봉화</option>
+                                <option value="산청">산청</option>
+                                <option value="서산">서산</option>
+                                <option value="서울">서울</option>
+                                <option value="서귀포">서귀포</option>
+                                <option value="세종">세종</option>
+                                <option value="속초">속초</option>
+                                <option value="수원">수원</option>
+                                <option value="순천">순천</option>
+                                <option value="순창군">순창군</option>
+                                <option value="안동">안동</option>
+                                <option value="양산시">양산시</option>
+                                <option value="양평">양평</option>
+                                <option value="여수">여수</option>
+                                <option value="영덕">영덕</option>
+                                <option value="영주">영주</option>
+                                <option value="영천">영천</option>
+                                <option value="울산">울산</option>
+                                <option value="울진">울진</option>
+                                <option value="원주">원주</option>
+                                <option value="의령군">의령군</option>
+                                <option value="의성">의성</option>
+                                <option value="이천">이천</option>
+                                <option value="인천">인천</option>
+                                <option value="임실">임실</option>
+                                <option value="장수">장수</option>
+                                <option value="장흥">장흥</option>
+                                <option value="전주">전주</option>
+                                <option value="정읍">정읍</option>
+                                <option value="제주">제주</option>
+                                <option value="제천">제천</option>
+                                <option value="진도군">진도군</option>
+                                <option value="진주">진주</option>
+                                <option value="창원">창원</option>
+                                <option value="천안">천안</option>
+                                <option value="청송군">청송군</option>
+                                <option value="청주">청주</option>
+                                <option value="춘천">춘천</option>
+                                <option value="충주">충주</option>
+                                <option value="통영">통영</option>
+                                <option value="파주">파주</option>
+                                <option value="포항">포항</option>
+                                <option value="한산">한산</option>
+                                <option value="함양군">함양군</option>
+                                <option value="해남">해남</option>
+                                <option value="홍천">홍천</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="startDate" class="form-label">시작 날짜</label>
+                            <input type="text" class="form-control" id="startDate" name="startDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endDate" class="form-label">종료 날짜</label>
+                            <input type="text" class="form-control" id="endDate" name="endDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">예측 항목</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="predictTemperature" checked disabled>
+                                        <label class="form-check-label" for="predictTemperature">
+                                            기온 예측
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="predictRain" checked disabled>
+                                        <label class="form-check-label" for="predictRain">
+                                            강수량 예측
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">예측하기</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 날씨 정보 요약 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">현재 날씨 정보</h5>
+                </div>
+                <div class="card-body">
+                    <div id="currentWeather" class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">지역을 선택하면 현재 날씨 정보를 확인할 수 있습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">예측 결과</h5>
+                </div>
+                <div class="card-body">
+                    <div id="predictionAlert" class="alert alert-info">
+                        지역을 선택하고 예측 기간을 설정한 후 예측하기 버튼을 클릭하세요.
+                    </div>
+                    <div id="predictionResults" style="display: none;">
+                        <!-- 기온 예측 -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2">기온 예측</h6>
+                            <div class="row">
+                                <div class="col-12">
+                                    <canvas id="temperatureChart"></canvas>
+                                </div>
+                            </div>
+                            <div id="temperatureSummary" class="mt-2 small text-muted"></div>
+                        </div>
+                        
+                        <!-- 강수량 예측 -->
+                        <div>
+                            <h6 class="border-bottom pb-2">강수량 예측</h6>
+                            <div class="row">
+                                <div class="col-12">
+                                    <canvas id="rainChart"></canvas>
+                                </div>
+                            </div>
+                            <div id="rainSummary" class="mt-2 small text-muted"></div>
+                        </div>
+
+                        <!-- 날씨 경고 -->
+                        <div id="weatherWarnings" class="mt-4">
+                            <h6 class="border-bottom pb-2">날씨 경고</h6>
+                            <div id="warningsList" class="alert alert-warning" style="display: none;">
+                                <!-- JavaScript로 동적 생성 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+<script src="{{ url_for('static', filename='js/weather_prediction.js') }}"></script>
+{% endblock %}
