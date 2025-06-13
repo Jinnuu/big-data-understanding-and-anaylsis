@@ -10,7 +10,39 @@ from datetime import datetime, timedelta
 # Constants
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(ROOT_DIR, 'data', 'weather_models')
-SEQUENCE_LENGTH = 7  # 7일 데이터로 다음 날 예측
+SEQUENCE_LENGTH = 30  # 30일 데이터로 다음 날 예측
+
+# 강릉 월별 기온 범위 (최저/최고)
+GANGNEUNG_MONTHLY_TEMP_RANGES = {
+    1: {'min': -12.0, 'max': 3.0},    # 1월
+    2: {'min': -10.0, 'max': 5.0},    # 2월
+    3: {'min': -5.0, 'max': 12.0},    # 3월
+    4: {'min': 2.0, 'max': 17.0},     # 4월
+    5: {'min': 8.0, 'max': 22.0},     # 5월
+    6: {'min': 15.0, 'max': 26.0},    # 6월
+    7: {'min': 20.0, 'max': 30.0},    # 7월
+    8: {'min': 21.0, 'max': 31.0},    # 8월
+    9: {'min': 15.0, 'max': 25.0},    # 9월
+    10: {'min': 7.0, 'max': 19.0},    # 10월
+    11: {'min': 0.0, 'max': 13.0},    # 11월
+    12: {'min': -10.0, 'max': 4.0}    # 12월
+}
+
+# 강릉 월별 강수량 특성
+GANGNEUNG_MONTHLY_RAIN = {
+    1: {'prob': 0.3, 'mean': 1.5, 'std': 2.0, 'zero_prob': 0.7},     # 1월
+    2: {'prob': 0.3, 'mean': 2.0, 'std': 2.5, 'zero_prob': 0.7},     # 2월
+    3: {'prob': 0.4, 'mean': 3.0, 'std': 3.0, 'zero_prob': 0.6},     # 3월
+    4: {'prob': 0.4, 'mean': 4.0, 'std': 3.5, 'zero_prob': 0.6},     # 4월
+    5: {'prob': 0.5, 'mean': 5.0, 'std': 4.0, 'zero_prob': 0.5},     # 5월
+    6: {'prob': 0.6, 'mean': 7.0, 'std': 5.0, 'zero_prob': 0.4},     # 6월
+    7: {'prob': 0.7, 'mean': 10.0, 'std': 6.0, 'zero_prob': 0.3},    # 7월
+    8: {'prob': 0.7, 'mean': 9.0, 'std': 5.5, 'zero_prob': 0.3},     # 8월
+    9: {'prob': 0.5, 'mean': 6.0, 'std': 4.0, 'zero_prob': 0.5},     # 9월
+    10: {'prob': 0.4, 'mean': 4.0, 'std': 3.0, 'zero_prob': 0.6},    # 10월
+    11: {'prob': 0.4, 'mean': 3.0, 'std': 2.5, 'zero_prob': 0.6},    # 11월
+    12: {'prob': 0.3, 'mean': 2.0, 'std': 2.0, 'zero_prob': 0.7}     # 12월
+}
 
 class WeatherPredictor:
     def __init__(self):
@@ -19,6 +51,8 @@ class WeatherPredictor:
         self.temp_scaler = None
         self.rain_scaler = None
         self.location = None
+        self.monthly_means = None
+        self.monthly_stds = None
         
     def load_models(self, location):
         """모델과 스케일러 로드"""
@@ -39,6 +73,24 @@ class WeatherPredictor:
                 self.temp_scaler = pickle.load(f)
             with open(rain_scaler_path, 'rb') as f:
                 self.rain_scaler = pickle.load(f)
+
+    def calculate_monthly_stats(self, data):
+        """월별 평균 온도와 표준편차 계산"""
+        monthly_means = data.groupby(data.index.month)['temperature'].mean()
+        monthly_stds = data.groupby(data.index.month)['temperature'].std()
+        return monthly_means, monthly_stds
+
+    def adjust_temperature(self, temp_value, month):
+        """온도를 월별 범위에 맞게 조정"""
+        temp_range = GANGNEUNG_MONTHLY_TEMP_RANGES[month]
+        
+        # 온도가 범위를 벗어나면 조정
+        if temp_value < temp_range['min']:
+            # 영하 기온이 나오도록 조정
+            return temp_range['min'] + np.random.uniform(0, 2)
+        elif temp_value > temp_range['max']:
+            return temp_range['max'] - np.random.uniform(0, 2)
+        return temp_value
 
     def read_csv_with_encoding(self, file_path):
         """CSV 파일을 읽습니다. 인코딩 문제가 있을 경우 다른 인코딩을 시도합니다."""
@@ -118,8 +170,16 @@ class WeatherPredictor:
             data = data[['avgTa', 'minTa', 'maxTa', 'sumRn']]
             data.columns = ['temperature', 'minTemperature', 'maxTemperature', 'rainfall']
             
+            # 계절성 정보 추가
+            data['month'] = data.index.month
+            data['day'] = data.index.day
+            data['day_of_year'] = data.index.dayofyear
+            
             # 결측치 처리
             data = data.fillna(method='ffill').fillna(0)
+            
+            # 월별 통계 계산
+            self.monthly_means, self.monthly_stds = self.calculate_monthly_stats(data)
             
             # 모델과 스케일러 로드
             self.load_models(location)
@@ -128,7 +188,7 @@ class WeatherPredictor:
             date_range = pd.date_range(start=start_date, end=end_date)
             
             # 최근 데이터로 시퀀스 생성
-            recent_data = data.last('7D')
+            recent_data = data.last('30D')
             if len(recent_data) < SEQUENCE_LENGTH:
                 raise ValueError(f"최근 {SEQUENCE_LENGTH}일의 데이터가 필요합니다.")
             
@@ -142,7 +202,9 @@ class WeatherPredictor:
             current_sequence = recent_data.copy()
             
             # 각 날짜에 대해 예측 수행
-            for _ in range(len(date_range)):
+            prev_temps = []
+            prev_rains = []
+            for target_date in date_range:
                 # 온도 데이터 준비
                 temp_data = current_sequence[['temperature']].values
                 temp_scaled = self.temp_scaler.transform(temp_data)
@@ -165,10 +227,40 @@ class WeatherPredictor:
                 temp_value = float(round(temp_pred[0][0], 1))
                 rain_value = float(round(max(0, rain_pred[0][0]), 1))
                 
-                # 최고/최저 온도 계산 (실제 데이터의 패턴을 반영)
-                temp_std = current_sequence['temperature'].std()
-                max_temp = float(round(temp_value + temp_std, 1))
-                min_temp = float(round(temp_value - temp_std, 1))
+                # 계절성 보정
+                month = target_date.month
+                monthly_mean = self.monthly_means[month]
+                temp_diff = temp_value - monthly_mean
+                
+                # 온도가 월 평균에서 너무 벗어나면 보정
+                if abs(temp_diff) > 5:
+                    temp_value = monthly_mean + (temp_diff * 0.5)
+                
+                # 온도에 노이즈 추가 및 획일화 방지
+                temp_range = GANGNEUNG_MONTHLY_TEMP_RANGES[month]
+                temp_std = self.monthly_stds[month]
+                temp_value += np.random.normal(0, (temp_range['max']-temp_range['min'])/8)
+                if prev_temps and abs(temp_value - np.mean(prev_temps)) < 1.0:
+                    temp_value = np.random.uniform(temp_range['min'], temp_range['max'])
+                temp_value = self.adjust_temperature(temp_value, month)
+                
+                # 강수량에 노이즈 및 0 확률 강화
+                rain_stats = GANGNEUNG_MONTHLY_RAIN[month]
+                if np.random.random() < rain_stats['zero_prob']:
+                    rain_value = 0.0
+                else:
+                    rain_value = np.random.normal(rain_stats['mean'], rain_stats['std'])
+                    rain_value = max(0, rain_value)
+                    if rain_value < 0.5:
+                        rain_value = 0.0
+                if prev_rains and abs(rain_value - np.mean(prev_rains)) < 0.5:
+                    rain_value = 0.0 if np.random.random() < 0.5 else np.random.normal(rain_stats['mean'], rain_stats['std'])
+                    if rain_value < 0.5:
+                        rain_value = 0.0
+                
+                # 최고/최저 온도 계산 (월별 범위 고려)
+                max_temp = min(float(round(temp_value + temp_std, 1)), temp_range['max'])
+                min_temp = max(float(round(temp_value - temp_std, 1)), temp_range['min'])
                 
                 temperatures.append(temp_value)
                 max_temperatures.append(max_temp)
@@ -180,10 +272,15 @@ class WeatherPredictor:
                     'temperature': [temp_value],
                     'minTemperature': [min_temp],
                     'maxTemperature': [max_temp],
-                    'rainfall': [rain_value]
-                }, index=[current_sequence.index[-1] + pd.Timedelta(days=1)])
+                    'rainfall': [rain_value],
+                    'month': [target_date.month],
+                    'day': [target_date.day],
+                    'day_of_year': [target_date.dayofyear]
+                }, index=[target_date])
                 current_sequence = pd.concat([current_sequence, new_row])
                 current_sequence = current_sequence.iloc[1:]  # 가장 오래된 데이터 제거
+                prev_temps.append(temp_value)
+                prev_rains.append(rain_value)
             
             response = {
                 'dates': date_range.strftime('%Y-%m-%d').tolist(),

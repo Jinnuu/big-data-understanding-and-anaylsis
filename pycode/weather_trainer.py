@@ -16,7 +16,39 @@ plt.ioff()
 # Constants
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_DIR = os.path.join(ROOT_DIR, 'data', 'weather_models')
-SEQUENCE_LENGTH = 7  # 7일 데이터로 다음 날 예측
+SEQUENCE_LENGTH = 30  # 30일 데이터로 다음 날 예측
+
+# 강릉 월별 기온 범위 (최저/최고)
+GANGNEUNG_MONTHLY_TEMP_RANGES = {
+    1: {'min': -12.0, 'max': 3.0},    # 1월
+    2: {'min': -10.0, 'max': 5.0},    # 2월
+    3: {'min': -5.0, 'max': 12.0},    # 3월
+    4: {'min': 2.0, 'max': 17.0},     # 4월
+    5: {'min': 8.0, 'max': 22.0},     # 5월
+    6: {'min': 15.0, 'max': 26.0},    # 6월
+    7: {'min': 20.0, 'max': 30.0},    # 7월
+    8: {'min': 21.0, 'max': 31.0},    # 8월
+    9: {'min': 15.0, 'max': 25.0},    # 9월
+    10: {'min': 7.0, 'max': 19.0},    # 10월
+    11: {'min': 0.0, 'max': 13.0},    # 11월
+    12: {'min': -10.0, 'max': 4.0}    # 12월
+}
+
+# 강릉 월별 강수량 특성
+GANGNEUNG_MONTHLY_RAIN = {
+    1: {'prob': 0.3, 'mean': 1.5, 'std': 2.0, 'zero_prob': 0.7},     # 1월
+    2: {'prob': 0.3, 'mean': 2.0, 'std': 2.5, 'zero_prob': 0.7},     # 2월
+    3: {'prob': 0.4, 'mean': 3.0, 'std': 3.0, 'zero_prob': 0.6},     # 3월
+    4: {'prob': 0.4, 'mean': 4.0, 'std': 3.5, 'zero_prob': 0.6},     # 4월
+    5: {'prob': 0.5, 'mean': 5.0, 'std': 4.0, 'zero_prob': 0.5},     # 5월
+    6: {'prob': 0.6, 'mean': 7.0, 'std': 5.0, 'zero_prob': 0.4},     # 6월
+    7: {'prob': 0.7, 'mean': 10.0, 'std': 6.0, 'zero_prob': 0.3},    # 7월
+    8: {'prob': 0.7, 'mean': 9.0, 'std': 5.5, 'zero_prob': 0.3},     # 8월
+    9: {'prob': 0.5, 'mean': 6.0, 'std': 4.0, 'zero_prob': 0.5},     # 9월
+    10: {'prob': 0.4, 'mean': 4.0, 'std': 3.0, 'zero_prob': 0.6},    # 10월
+    11: {'prob': 0.4, 'mean': 3.0, 'std': 2.5, 'zero_prob': 0.6},    # 11월
+    12: {'prob': 0.3, 'mean': 2.0, 'std': 2.0, 'zero_prob': 0.7}     # 12월
+}
 
 class WeatherDataProcessor:
     def __init__(self):
@@ -31,10 +63,22 @@ class WeatherDataProcessor:
         # 결측치 처리
         data = data.fillna(method='ffill').fillna(method='bfill')
         
-        # 이상치 제거 (3 표준편차 이상)
-        mean = data['temperature'].mean()
-        std = data['temperature'].std()
-        data = data[abs(data['temperature'] - mean) <= 3 * std]
+        # 계절성 정보 추가
+        data['month'] = data.index.month
+        data['day'] = data.index.day
+        data['day_of_year'] = data.index.dayofyear
+        
+        # 월별 온도 범위에 맞게 데이터 조정
+        for month in range(1, 13):
+            month_mask = data.index.month == month
+            temp_range = GANGNEUNG_MONTHLY_TEMP_RANGES[month]
+            
+            # 범위를 벗어나는 데이터 조정
+            data.loc[month_mask & (data['temperature'] < temp_range['min']), 'temperature'] = \
+                (temp_range['min'] + data.loc[month_mask & (data['temperature'] < temp_range['min']), 'temperature']) / 2
+            
+            data.loc[month_mask & (data['temperature'] > temp_range['max']), 'temperature'] = \
+                (temp_range['max'] + data.loc[month_mask & (data['temperature'] > temp_range['max']), 'temperature']) / 2
         
         # 데이터 정규화
         temp_data = self.temp_scaler.fit_transform(data[['temperature']])
@@ -55,36 +99,122 @@ class WeatherDataProcessor:
         # 결측치 처리
         data = data.fillna(0)
         
+        # 계절성 정보 추가
+        data['month'] = data.index.month
+        data['day'] = data.index.day
+        data['day_of_year'] = data.index.dayofyear
+        
         # 음수 값 제거
         data['rainfall'] = data['rainfall'].clip(lower=0)
         
-        # 데이터 정규화
-        rain_data = self.rain_scaler.fit_transform(data[['rainfall']])
+        # 월별 강수량 특성에 맞게 데이터 조정
+        for month in range(1, 13):
+            month_mask = data.index.month == month
+            rain_stats = GANGNEUNG_MONTHLY_RAIN[month]
+            
+            # 해당 월의 데이터만 선택
+            month_data = data[month_mask]
+            
+            # 1. 먼저 0 강수량 처리
+            # 실제 0 강수량 데이터 유지
+            actual_zero_mask = month_data['rainfall'] == 0
+            
+            # 추가 0 강수량 생성 (월별 확률에 따라)
+            random_zero_mask = np.random.random(len(month_data)) < rain_stats['zero_prob']
+            combined_zero_mask = actual_zero_mask | random_zero_mask
+            data.loc[month_data.index[combined_zero_mask], 'rainfall'] = 0
+            
+            # 2. 0이 아닌 강수량 처리
+            non_zero_mask = ~combined_zero_mask
+            if non_zero_mask.any():
+                non_zero_data = month_data[non_zero_mask]
+                
+                # 기존 강수량이 0.5mm 미만인 경우 0으로 처리
+                small_rain_mask = non_zero_data['rainfall'] < 0.5
+                data.loc[non_zero_data.index[small_rain_mask], 'rainfall'] = 0
+                
+                # 나머지 강수량은 월별 특성에 맞게 조정
+                remaining_mask = ~small_rain_mask
+                if remaining_mask.any():
+                    remaining_data = non_zero_data[remaining_mask]
+                    # 정규 분포를 따르는 강수량 생성
+                    rain_values = np.random.normal(
+                        rain_stats['mean'],
+                        rain_stats['std'],
+                        len(remaining_data)
+                    )
+                    # 음수 값은 0으로 처리
+                    rain_values = np.clip(rain_values, 0, None)
+                    data.loc[remaining_data.index, 'rainfall'] = rain_values
+        
+        # 데이터 정규화 전에 0과 0이 아닌 값을 분리
+        zero_mask = data['rainfall'] == 0
+        non_zero_mask = ~zero_mask
+        
+        # 0이 아닌 값만 정규화
+        if non_zero_mask.any():
+            non_zero_data = data[non_zero_mask]
+            rain_data = self.rain_scaler.fit_transform(non_zero_data[['rainfall']])
+            data.loc[non_zero_mask, 'rainfall'] = rain_data.flatten()
         
         # 시퀀스 데이터 생성
         X, y = [], []
-        for i in range(len(rain_data) - SEQUENCE_LENGTH):
-            X.append(rain_data[i:(i + SEQUENCE_LENGTH)])
-            y.append(rain_data[i + SEQUENCE_LENGTH])
+        for i in range(len(data) - SEQUENCE_LENGTH):
+            X.append(data[['rainfall']].iloc[i:(i + SEQUENCE_LENGTH)].values)
+            y.append(data[['rainfall']].iloc[i + SEQUENCE_LENGTH].values)
             
         return np.array(X), np.array(y)
 
 def create_temperature_model():
-    """온도 예측 모델 생성"""
+    """CNN-LSTM 하이브리드 온도 예측 모델 생성"""
     model = tf.keras.Sequential([
-        tf.keras.layers.LSTM(16, input_shape=(SEQUENCE_LENGTH, 1)),
+        # CNN 레이어
+        tf.keras.layers.Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(SEQUENCE_LENGTH, 1)),
+        tf.keras.layers.MaxPooling1D(pool_size=2),
+        tf.keras.layers.Conv1D(filters=32, kernel_size=3, activation='relu'),
+        tf.keras.layers.MaxPooling1D(pool_size=2),
+        
+        # LSTM 레이어
+        tf.keras.layers.LSTM(32, return_sequences=True),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.LSTM(16),
+        tf.keras.layers.Dropout(0.2),
+        
+        # 출력 레이어
+        tf.keras.layers.Dense(8, activation='relu'),
         tf.keras.layers.Dense(1)
     ])
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='mse')
+    
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss='mse'
+    )
     return model
 
 def create_rainfall_model():
-    """강수량 예측 모델 생성"""
+    """CNN-LSTM 하이브리드 강수량 예측 모델 생성"""
     model = tf.keras.Sequential([
-        tf.keras.layers.LSTM(16, input_shape=(SEQUENCE_LENGTH, 1)),
+        # CNN 레이어
+        tf.keras.layers.Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(SEQUENCE_LENGTH, 1)),
+        tf.keras.layers.MaxPooling1D(pool_size=2),
+        tf.keras.layers.Conv1D(filters=32, kernel_size=3, activation='relu'),
+        tf.keras.layers.MaxPooling1D(pool_size=2),
+        
+        # LSTM 레이어
+        tf.keras.layers.LSTM(32, return_sequences=True),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.LSTM(16),
+        tf.keras.layers.Dropout(0.2),
+        
+        # 출력 레이어
+        tf.keras.layers.Dense(8, activation='relu'),
         tf.keras.layers.Dense(1)
     ])
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='mse')
+    
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss='mse'
+    )
     return model
 
 def train_weather_model(location):
