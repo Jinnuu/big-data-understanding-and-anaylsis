@@ -233,7 +233,11 @@ def predict_weather_route():
         weather_data = weather_predictor.predict_weather(location, start_date, end_date)
         if weather_data is None:
             return jsonify({'error': '날씨 예측에 실패했습니다.'}), 500
-            
+        
+        # 강수량 소숫점 2자리로 변환
+        if 'rainfall' in weather_data:
+            weather_data['rainfall'] = [round(float(r), 2) for r in weather_data['rainfall']]
+        
         return jsonify(weather_data)
         
     except Exception as e:

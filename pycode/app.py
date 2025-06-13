@@ -34,36 +34,38 @@ def initialize_models():
     print("\n=== 모델 초기화 완료 ===")
 
 def check_and_train_models():
-    """모델 존재 여부 확인 및 학습"""
+    """모든 지역의 모델 존재 여부 확인 및 학습"""
+    failed_regions_path = os.path.join(project_root, 'failed_regions.txt')
+    # 실패 지역 파일 초기화
+    with open(failed_regions_path, 'w', encoding='utf-8') as f:
+        f.write('')
     try:
-        # 강릉 모델 디렉토리 경로
-        model_dir = os.path.join(project_root, 'data', 'weather_models', '강릉')
-        
-        # 모델 파일 경로
-        temp_model_path = os.path.join(model_dir, 'temperature_model.keras')
-        rain_model_path = os.path.join(model_dir, 'rain_model.keras')
-        temp_scaler_path = os.path.join(model_dir, 'temperature_scaler.pkl')
-        rain_scaler_path = os.path.join(model_dir, 'rainfall_scaler.pkl')
-        
-        # 모든 필요한 파일이 존재하는지 확인
-        model_exists = all(os.path.exists(path) for path in [
-            temp_model_path,
-            rain_model_path,
-            temp_scaler_path,
-            rain_scaler_path
-        ])
-        
-        if not model_exists:
-            print("강릉 모델이 없습니다. 모델을 학습합니다...")
-            # 강릉 모델만 학습
-            success = train_weather_model('강릉')
-            if success:
-                print("강릉 모델 학습이 완료되었습니다.")
+        for location in WEATHER_STATIONS.keys():
+            print(f"\n{location} 모델 체크 및 학습 시작...")
+            model_dir = os.path.join(project_root, 'data', 'weather_models', location)
+            temp_model_path = os.path.join(model_dir, 'temperature_model.keras')
+            rain_model_path = os.path.join(model_dir, 'rain_model.keras')
+            temp_scaler_path = os.path.join(model_dir, 'temperature_scaler.pkl')
+            rain_scaler_path = os.path.join(model_dir, 'rainfall_scaler.pkl')
+
+            model_exists = all(os.path.exists(path) for path in [
+                temp_model_path,
+                rain_model_path,
+                temp_scaler_path,
+                rain_scaler_path
+            ])
+
+            if not model_exists:
+                print(f"{location} 모델이 없습니다. 모델을 학습합니다...")
+                success = train_weather_model(location)
+                if success:
+                    print(f"{location} 모델 학습이 완료되었습니다.")
+                else:
+                    print(f"{location} 모델 학습에 실패했습니다.")
+                    with open(failed_regions_path, 'a', encoding='utf-8') as f:
+                        f.write(location + '\n')
             else:
-                print("강릉 모델 학습에 실패했습니다.")
-        else:
-            print("강릉 모델이 이미 존재합니다.")
-            
+                print(f"{location} 모델이 이미 존재합니다.")
     except Exception as e:
         print(f"모델 체크 중 오류 발생: {str(e)}")
         return False
