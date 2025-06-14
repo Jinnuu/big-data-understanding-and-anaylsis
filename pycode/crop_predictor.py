@@ -104,13 +104,13 @@ def predict_crop_yield(location, crop_type, year, cultivation_type, area):
         
         if weather_data is None:
             print(f"날씨 예측 실패: {location}, {year}")
-            return 1000 * area  # 기본값 반환
+            return 100 * area  # 기본값 반환 (a당 100kg)
             
         # 2. 작물별 최적 생육 조건 확인
         crop_conditions = CROP_CONDITIONS.get(crop_type, {}).get(cultivation_type)
         if not crop_conditions:
             print(f"작물 조건 정보 없음: {crop_type}, {cultivation_type}")
-            return 1000 * area
+            return 100 * area
             
         temp_range = crop_conditions['temp_range']
         rain_range = crop_conditions['rain_range']
@@ -152,22 +152,22 @@ def predict_crop_yield(location, crop_type, year, cultivation_type, area):
         # 평균 생육 점수 계산
         avg_growth_score = np.mean(growth_scores)
         
-        # 기본 수확량 (10a당 kg)
+        # 기본 수확량 (a당 kg)
         base_yield = {
-            '딸기': {'시설': 3000, '노지': 2000},
-            '수박': {'시설': 4000, '노지': 3000},
-            '오이': {'시설': 3500, '노지': 2500},
-            '참외': {'시설': 3500, '노지': 2500},
-            '토마토': {'시설': 4000, '노지': 3000},
-            '호박': {'시설': 3000, '노지': 2000}
+            '딸기': {'시설': 300, '노지': 200},
+            '수박': {'시설': 400, '노지': 300},
+            '오이': {'시설': 350, '노지': 250},
+            '참외': {'시설': 350, '노지': 250},
+            '토마토': {'시설': 400, '노지': 300},
+            '호박': {'시설': 300, '노지': 200}
         }
         
         # 예상 수확량 계산
-        base = base_yield.get(crop_type, {}).get(cultivation_type, 2000)
+        base = base_yield.get(crop_type, {}).get(cultivation_type, 200)
         predicted_yield = base * avg_growth_score * area
         
         return predicted_yield
         
     except Exception as e:
         print(f"작물 수확량 예측 중 오류 발생: {e}")
-        return 1000 * area  # 오류 발생 시 기본값 반환 
+        return 100 * area  # 오류 발생 시 기본값 반환 (a당 100kg) 

@@ -64,15 +64,15 @@ def weather():
     """날씨 예측 페이지"""
     return render_template('weather_prediction.html')
 
-@main_bp.route('/crops')
-def crops():
-    """작물 수확량 예측 페이지"""
-    return render_template('crops.html')
-
 @main_bp.route('/crops_prediction')
 def crops_prediction():
     """작물 예측 페이지"""
-    return render_template('crops_prediction.html')
+    return render_template('crops_prediction.html', now=datetime.now())
+
+@main_bp.route('/policy')
+def policy():
+    """정책 추천 페이지"""
+    return render_template('policy.html')
 
 # API 라우트
 @api_bp.route('/predict_crop', methods=['POST'])
@@ -244,4 +244,152 @@ def predict_weather_route():
         
     except Exception as e:
         print(f"날씨 예측 중 오류 발생: {str(e)}")
-        return jsonify({'error': '서버 오류가 발생했습니다.'}), 500 
+        return jsonify({'error': '서버 오류가 발생했습니다.'}), 500
+
+@main_bp.route('/api/policy', methods=['POST'])
+def get_policy_recommendations():
+    """정책 추천 API"""
+    data = request.get_json()
+    
+    # 필수 파라미터 확인
+    required_params = ['location', 'cropType', 'cultivationType']
+    for param in required_params:
+        if param not in data:
+            return jsonify({'error': f'Missing required parameter: {param}'}), 400
+    
+    # 정책 추천 로직 구현
+    policies = [
+        {
+            'title': '농기계종합보험',
+            'description': '농기계 사고로 인한 손해를 보상받을 수 있는 종합보험입니다.',
+            'details': {
+                '가입대상': '동력경운기, 트랙터, 콤바인, 승용관리기, 승용이앙기, SS 분무기, 광역방제기, 베일러(결속기), 농업용굴삭기, 농업용로우더, 농업용동력운반차, 농업용무인헬기, 농업용드론',
+                '보장내용': [
+                    {
+                        'name': '종합위험보장',
+                        'type': '보통약관',
+                        'description': '보상하는 손해로 보험목적에 자기부담금을 초과하는 손해가 발생한 경우 시가를 기준으로 보상'
+                    },
+                    {
+                        'name': '재조달가액보장',
+                        'type': '특별약관',
+                        'description': '보상하는 손해로 보험목적에 자기부담금을 초과하는 손해가 발생한 경우 재조달가액을 기준으로 보상'
+                    },
+                    {
+                        'name': '수재위험부보장',
+                        'type': '',
+                        'description': '수재로 인하여 보험목적에 손해가 발생한 경우 보상하지 않음'
+                    },
+                    {
+                        'name': '화재위험보장',
+                        'type': '특별약관',
+                        'description': '화재로 인하여 보험목적에 손해가 발생한 경우 보상'
+                    },
+                    {
+                        'name': '화재대물배상책임보장',
+                        'type': '특별약관',
+                        'description': '화재로 인하여 제3자에게 손해를 입힌 경우 보상'
+                    }
+                ],
+                '자기부담금': '보험금액의 10%',
+                '특이사항': '농기계 사고로 인한 손해를 보상받을 수 있는 종합보험입니다.'
+            },
+            'link': 'https://www.nonghyup.com'
+        },
+        {
+            'title': '농작물재해보험',
+            'description': '기상재해로 인한 농작물 피해를 보상받을 수 있는 보험입니다.',
+            'details': {
+                '보장기간': {
+                    '수박': {
+                        '재정식 보장': '판매개시연도 5월 31일까지',
+                        '경작불능 보장': '판매개시연도 5월 31일부터 수확 개시 시점까지',
+                        '수확감소 보장': '판매개시연도 5월 31일부터 수확기 종료 시점까지 (다만, 판매개시연도 8월 10일을 초과할 수 없음)'
+                    },
+                    '호박': {
+                        '재정식 보장': '판매개시연도 5월 29일까지 (다만, 판매개시연도 5월 31일을 초과할 수 없음)',
+                        '경작불능 보장': '판매개시연도 5월 29일부터 수확 개시 시점까지',
+                        '수확감소 보장': '판매개시연도 5월 29일부터 수확기 종료 시점까지 (다만, 판매개시연도 8월 27일을 초과할 수 없음)'
+                    }
+                }
+            },
+            'link': 'https://www.nonghyup.com'
+        }
+    ]
+
+    # 시설 재배를 선택한 경우 추가 보험 정보 제공
+    if data.get('cultivationType') == '시설':
+        policies.extend([
+            {
+                'title': '농업용시설물 보험',
+                'description': '농업용시설물과 부대시설의 피해를 보상받을 수 있는 보험입니다.',
+                'details': {
+                    '보험목적': '농업용시설물(단동·연동하우스, 유리온실), 부대시설(단, 동산은 제외)',
+                    '대상재해': '자연재해, 조수해, 화재(특약 가입 시 보장)',
+                    '보장내용': [
+                        {
+                            'name': '종합위험보장',
+                            'type': '보통약관',
+                            'description': '보상하는 손해로 보험목적에 자기부담금을 초과하는 손해가 발생한 경우 시가를 기준으로 보상'
+                        },
+                        {
+                            'name': '재조달가액보장',
+                            'type': '특별약관',
+                            'description': '보상하는 손해로 보험목적에 자기부담금을 초과하는 손해가 발생한 경우 재조달가액을 기준으로 보상'
+                        },
+                        {
+                            'name': '수재위험부보장',
+                            'type': '',
+                            'description': '수재로 인하여 보험목적에 손해가 발생한 경우 보상하지 않음'
+                        },
+                        {
+                            'name': '화재위험보장',
+                            'type': '특별약관',
+                            'description': '화재로 인하여 보험목적에 손해가 발생한 경우 보상'
+                        }
+                    ]
+                },
+                'link': 'https://www.nonghyup.com'
+            },
+            {
+                'title': '시설작물 보험',
+                'description': '시설에서 재배하는 작물의 피해를 보상받을 수 있는 보험입니다.',
+                'details': {
+                    '보험목적': '수박, 딸기, 토마토, 오이, 참외, 고추, 호박, 국화, 파프리카, 멜론, 장미, 상추, 시금치, 부추, 가지, 배추, 파(대파, 쪽파), 무, 백합, 카네이션, 미나리, 쑥갓, 감자',
+                    '대상재해': '자연재해, 조수해, 화재(해당특약 가입 시 보장)',
+                    '보장내용': [
+                        {
+                            'name': '종합위험보장',
+                            'type': '보통약관',
+                            'description': '보상하는 손해로 약관에 따라 계산한 생산비보장보험금이 10만원을 초과할 때 보상'
+                        },
+                        {
+                            'name': '화재위험보장',
+                            'type': '특별약관',
+                            'description': '화재로 인하여 보험목적에 손해가 발생한 경우 보상'
+                        },
+                        {
+                            'name': '수재위험부보장',
+                            'type': '',
+                            'description': '수재로 인하여 보험목적에 손해가 발생한 경우 보상하지 않음'
+                        }
+                    ]
+                },
+                'link': 'https://www.nonghyup.com'
+            }
+        ])
+    
+    policies.extend([
+        {
+            'title': '스마트팜 융복합산업 선도기업 육성사업',
+            'description': '스마트팜 관련 기술개발 및 사업화를 지원하는 사업입니다.',
+            'link': 'https://www.smartfarmkorea.net'
+        },
+        {
+            'title': '농업인 직불금',
+            'description': '지역과 작물에 따른 직불금 지원 정책입니다.',
+            'link': 'https://www.mafra.go.kr'
+        }
+    ])
+    
+    return jsonify({'policies': policies}) 

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}정책 추천 - 기상 예측 시스템{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">정책 추천</h5>
+                </div>
+                <div class="card-body">
+                    <form id="policyForm">
+                        <div class="mb-3">
+                            <label for="location" class="form-label">지역 선택</label>
+                            <select class="form-select" id="location" name="location" required>
+                                <option value="">지역을 선택하세요</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cropType" class="form-label">작물 선택</label>
+                            <select class="form-select" id="cropType" name="cropType" required>
+                                <option value="">작물을 선택하세요</option>
+                                <option value="딸기">딸기</option>
+                                <option value="수박">수박</option>
+                                <option value="오이">오이</option>
+                                <option value="참외">참외</option>
+                                <option value="토마토">토마토</option>
+                                <option value="호박">호박</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cultivationType" class="form-label">재배 방식</label>
+                            <select class="form-select" id="cultivationType" name="cultivationType" required>
+                                <option value="">재배 방식을 선택하세요</option>
+                                <option value="시설">시설</option>
+                                <option value="노지">노지</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">정책 추천 받기</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 정책 추천 결과 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">추천 정책</h5>
+                </div>
+                <div class="card-body">
+                    <div id="policyAlert" class="alert alert-info">
+                        지역과 작물을 선택한 후 정책 추천 받기 버튼을 클릭하세요.
+                    </div>
+                    <div id="policyResults" style="display: none;">
+                        <!-- JavaScript로 동적 생성 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/policy.js') }}"></script>
+{% endblock %} 

@@ -211,7 +211,7 @@ function displayPredictionResults(data, cropType, cultivationType, location, yea
     predictionDetails.innerHTML = `
         <p class="mb-1">${cropType} (${cultivationType})</p>
         <p class="mb-1">${location} / ${year}년</p>
-        <p class="mb-1">재배 면적: ${area} 10a</p>
+        <p class="mb-1">재배 면적: ${area} a</p>
     `;
     
     // 결과 표시

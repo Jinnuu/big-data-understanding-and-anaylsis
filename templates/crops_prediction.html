@@ -123,15 +123,15 @@
                             <label for="year" class="form-label">예측 연도</label>
                             <select class="form-select" id="year" name="year" required>
                                 <option value="">연도를 선택하세요</option>
-                                {% for year in range(2024, 2031) %}
+                                {% for year in range(now.year, now.year + 7) %}
                                 <option value="{{ year }}">{{ year }}년</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="area" class="form-label">재배 면적 (10a)</label>
+                            <label for="area" class="form-label">재배 면적 (a)</label>
                             <input type="number" class="form-control" id="area" name="area" min="0.1" step="0.1" required>
-                            <div class="form-text">10a(1,000㎡) 단위로 입력해주세요.</div>
+                            <div class="form-text">a(100㎡) 단위로 입력해주세요.</div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">예측하기</button>
                     </form>

@@ -25,7 +25,10 @@
                         <a class="nav-link {% if request.endpoint == 'main.weather' %}active{% endif %}" href="/weather">날씨 예측</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'main.crops' %}active{% endif %}" href="/crops">작물 수확 예측</a>
+                        <a class="nav-link {% if request.endpoint == 'main.crops_prediction' %}active{% endif %}" href="/crops_prediction">작물 수확 예측</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.policy' %}active{% endif %}" href="/policy">정책 추천</a>
                     </li>
                 </ul>
             </div>
