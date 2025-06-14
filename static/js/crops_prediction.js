@@ -13,11 +13,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('cultivationType').addEventListener('change', updateCropInfo);
 
     // 지역 목록 가져오기
-    fetch('/get_locations')
+    fetch('/api/get_locations')
         .then(response => response.json())
         .then(data => {
+            if (data.status === 'error') {
+                throw new Error(data.message);
+            }
             const locationSelect = document.getElementById('location');
-            data.locations.forEach(location => {
+            data.data.forEach(location => {
                 const option = document.createElement('option');
                 option.value = location;
                 option.textContent = location;
@@ -26,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('지역 목록을 가져오는 중 오류 발생:', error);
-            showAlert('ricePredictionAlert', '지역 목록을 가져오는 중 오류가 발생했습니다.', 'danger');
+            showAlert('predictionAlert', '지역 목록을 가져오는 중 오류가 발생했습니다.', 'danger');
         });
 
     // 지역별 예상 수량 폼 제출 처리
@@ -76,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 작물 변경 시 재배 방식 옵션 업데이트
-async function handleCropChange(event) {
+function handleCropChange(event) {
     const cropType = event.target.value;
     const cultivationTypeSelect = document.getElementById('cultivationType');
     
@@ -90,38 +93,17 @@ async function handleCropChange(event) {
         return;
     }
     
-    try {
-        // 작물 정보 로드
-        const response = await fetch('/get_crops');
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
-        // 캐시에 작물 정보 저장
-        cropInfoCache = data;
-        
-        // 재배 방식 옵션 추가
-        const cultivationTypes = data[cropType].cultivation_types;
-        cultivationTypes.forEach(type => {
-            const option = document.createElement('option');
-            option.value = type;
-            option.textContent = type;
-            cultivationTypeSelect.appendChild(option);
-        });
-        
-        // 작물 정보 업데이트
-        updateCropInfo();
-        
-    } catch (error) {
-        console.error('작물 정보 로드 중 오류:', error);
-        document.getElementById('cropInfo').innerHTML = `
-            <div class="alert alert-danger">
-                작물 정보를 불러오는 중 오류가 발생했습니다.
-            </div>
-        `;
-    }
+    // 모든 작물에 대해 노지와 시설 재배 방식 추가
+    const cultivationTypes = ['노지', '시설'];
+    cultivationTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        cultivationTypeSelect.appendChild(option);
+    });
+    
+    // 작물 정보 업데이트
+    updateCropInfo();
 }
 
 // 작물 정보 업데이트
@@ -164,7 +146,7 @@ async function handlePredictionSubmit(event) {
     const area = document.getElementById('area').value;
     
     if (!cropType || !cultivationType || !location || !year || !area) {
-        showAlert('모든 필드를 입력해주세요.', 'warning');
+        showAlert('predictionAlert', '모든 필드를 입력해주세요.', 'warning');
         return;
     }
     
@@ -181,7 +163,7 @@ async function handlePredictionSubmit(event) {
     document.getElementById('predictionResults').style.display = 'none';
     
     try {
-        const response = await fetch('/predict_crop', {
+        const response = await fetch('/api/predict_crop', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -195,10 +177,14 @@ async function handlePredictionSubmit(event) {
             })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         
-        if (data.error) {
-            throw new Error(data.error);
+        if (data.status === 'error') {
+            throw new Error(data.message);
         }
         
         // 예측 결과 표시
@@ -206,7 +192,11 @@ async function handlePredictionSubmit(event) {
         
     } catch (error) {
         console.error('수확량 예측 중 오류:', error);
-        showAlert(error.message || '수확량 예측 중 오류가 발생했습니다.', 'danger');
+        document.getElementById('predictionAlert').innerHTML = `
+            <div class="alert alert-danger">
+                ${error.message || '수확량 예측 중 오류가 발생했습니다.'}
+            </div>
+        `;
     }
 }
 
@@ -224,47 +214,50 @@ function displayPredictionResults(data, cropType, cultivationType, location, yea
         <p class="mb-1">재배 면적: ${area} 10a</p>
     `;
     
-    // 작물별 주의사항 표시
-    const cropData = cropInfoCache[cropType];
-    const tempRange = cropData.temp_ranges[cultivationType];
-    const rainRange = cropData.rain_ranges[cultivationType];
-    
-    const warnings = [];
-    
-    // 온도 관련 주의사항
-    if (tempRange[0] < 5) {
-        warnings.push('저온에 주의하세요. 서리 피해가 발생할 수 있습니다.');
-    }
-    if (tempRange[1] > 30) {
-        warnings.push('고온에 주의하세요. 열 스트레스로 인한 생육 저하가 발생할 수 있습니다.');
-    }
-    
-    // 강수량 관련 주의사항
-    if (rainRange[0] < 50) {
-        warnings.push('가뭄에 주의하세요. 적절한 관수가 필요합니다.');
-    }
-    if (rainRange[1] > 200) {
-        warnings.push('습해에 주의하세요. 배수 관리가 필요합니다.');
-    }
-    
-    const cropWarnings = document.getElementById('cropWarnings');
-    if (warnings.length > 0) {
-        cropWarnings.innerHTML = warnings.map(warning => `<p class="mb-1">${warning}</p>`).join('');
-        cropWarnings.style.display = 'block';
-    } else {
-        cropWarnings.style.display = 'none';
-    }
-    
     // 결과 표시
     document.getElementById('predictionAlert').style.display = 'none';
     document.getElementById('predictionResults').style.display = 'block';
+    
+    // 작물별 주의사항 표시
+    const cropData = cropInfoCache[cropType];
+    if (cropData && cropData[cultivationType]) {
+        const tempRange = cropData[cultivationType].temp_range;
+        const rainRange = cropData[cultivationType].rain_range;
+        
+        const warnings = [];
+        
+        // 온도 관련 주의사항
+        if (tempRange[0] < 5) {
+            warnings.push('저온에 주의하세요. 서리 피해가 발생할 수 있습니다.');
+        }
+        if (tempRange[1] > 30) {
+            warnings.push('고온에 주의하세요. 열 스트레스로 인한 생육 저하가 발생할 수 있습니다.');
+        }
+        
+        // 강수량 관련 주의사항
+        if (rainRange[0] < 50) {
+            warnings.push('가뭄에 주의하세요. 적절한 관수가 필요합니다.');
+        }
+        if (rainRange[1] > 200) {
+            warnings.push('습해에 주의하세요. 배수 관리가 필요합니다.');
+        }
+        
+        const cropWarnings = document.getElementById('cropWarnings');
+        if (warnings.length > 0) {
+            cropWarnings.innerHTML = warnings.map(warning => `<p class="mb-1">• ${warning}</p>`).join('');
+        } else {
+            cropWarnings.innerHTML = '<p class="mb-1">현재 특별한 주의사항이 없습니다.</p>';
+        }
+    }
 }
 
-// 알림 메시지 표시
-function showAlert(message, type = 'info') {
-    const alertDiv = document.getElementById('predictionAlert');
-    alertDiv.className = `alert alert-${type}`;
-    alertDiv.textContent = message;
-    alertDiv.style.display = 'block';
-    document.getElementById('predictionResults').style.display = 'none';
+// 알림 표시 함수
+function showAlert(elementId, message, type = 'info') {
+    const alertElement = document.getElementById(elementId);
+    alertElement.innerHTML = `
+        <div class="alert alert-${type}">
+            ${message}
+        </div>
+    `;
+    alertElement.style.display = 'block';
 } 

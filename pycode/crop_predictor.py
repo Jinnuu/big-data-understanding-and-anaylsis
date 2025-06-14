@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow import keras
 import joblib
 import os
+from pycode.weather_predictor import predict_weather
 
 # 프로젝트 루트 디렉토리 경로 설정
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -93,51 +94,80 @@ def load_crop_data(crop_type, cultivation_type, yield_type):
         print(f"작물 데이터 로드 중 오류 발생 ({crop_type}_{cultivation_type}_{yield_type}): {e}")
         return None
 
-def predict_crop_yield(crop_type, cultivation_type, location, year, area):
+def predict_crop_yield(location, crop_type, year, cultivation_type, area):
     """작물 수확량 예측"""
     try:
-        # 모델과 스케일러 로드
-        model_path = os.path.join(ROOT_DIR, 'data', 'saved_models', 'crops_models', f'{crop_type}_{cultivation_type}_{location}_model.keras')
-        scaler_path = os.path.join(ROOT_DIR, 'data', 'saved_models', 'crops_models', f'{crop_type}_{cultivation_type}_{location}_scaler.pkl')
+        # 1. 날씨 예측
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
+        weather_data = predict_weather(location, start_date, end_date)
         
-        if not os.path.exists(model_path) or not os.path.exists(scaler_path):
-            print(f"모델 파일을 찾을 수 없음: {crop_type}_{cultivation_type}_{location}")
-            return None
+        if weather_data is None:
+            print(f"날씨 예측 실패: {location}, {year}")
+            return 1000 * area  # 기본값 반환
             
-        model = keras.models.load_model(model_path)
-        scaler = joblib.load(scaler_path)
-        
-        # 날씨 데이터 로드 및 전처리
-        weather_df = load_weather_data(location)
-        if weather_df is None:
-            return None
+        # 2. 작물별 최적 생육 조건 확인
+        crop_conditions = CROP_CONDITIONS.get(crop_type, {}).get(cultivation_type)
+        if not crop_conditions:
+            print(f"작물 조건 정보 없음: {crop_type}, {cultivation_type}")
+            return 1000 * area
             
-        # 해당 연도의 날씨 데이터만 선택
-        weather_df = weather_df[weather_df['tm'].dt.year == year]
-        if len(weather_df) == 0:
-            print(f"해당 연도의 날씨 데이터가 없음: {year}")
-            return None
+        temp_range = crop_conditions['temp_range']
+        rain_range = crop_conditions['rain_range']
+        
+        # 3. 날씨 데이터 분석 및 수확량 예측
+        temperatures = weather_data['temperature']
+        rainfalls = weather_data['rainfall']
+        
+        # 월별 평균 온도와 강수량 계산
+        monthly_data = []
+        for i in range(0, len(temperatures), 30):
+            month_temp = np.mean(temperatures[i:i+30])
+            month_rain = np.sum(rainfalls[i:i+30])
+            monthly_data.append({
+                'temp': month_temp,
+                'rain': month_rain
+            })
+        
+        # 생육 조건 만족도 계산
+        growth_scores = []
+        for month in monthly_data:
+            temp_score = 1.0
+            rain_score = 1.0
             
-        # 월별 데이터로 집계
-        weather_monthly = weather_df.set_index('tm').resample('ME').agg({
-            'avgTa': 'mean',
-            'sumRn': 'sum',
-            'hr1MaxRn': 'max'
-        }).reset_index()
+            # 온도 조건 만족도
+            if month['temp'] < temp_range[0]:
+                temp_score = 0.5
+            elif month['temp'] > temp_range[1]:
+                temp_score = 0.7
+                
+            # 강수량 조건 만족도
+            if month['rain'] < rain_range[0]:
+                rain_score = 0.6
+            elif month['rain'] > rain_range[1]:
+                rain_score = 0.8
+                
+            growth_scores.append(temp_score * rain_score)
         
-        # 입력 데이터 준비
-        features = weather_monthly[['avgTa', 'sumRn', 'hr1MaxRn']].values
-        features = features.reshape(1, features.shape[0], features.shape[1])
-        features_scaled = scaler.transform(features.reshape(-1, features.shape[-1])).reshape(features.shape)
+        # 평균 생육 점수 계산
+        avg_growth_score = np.mean(growth_scores)
         
-        # 예측 수행
-        prediction = model.predict(features_scaled, verbose=0)[0][0]
+        # 기본 수확량 (10a당 kg)
+        base_yield = {
+            '딸기': {'시설': 3000, '노지': 2000},
+            '수박': {'시설': 4000, '노지': 3000},
+            '오이': {'시설': 3500, '노지': 2500},
+            '참외': {'시설': 3500, '노지': 2500},
+            '토마토': {'시설': 4000, '노지': 3000},
+            '호박': {'시설': 3000, '노지': 2000}
+        }
         
-        # 면적에 따른 총 수확량 계산 (10a당 수확량 * 면적)
-        total_yield = prediction * (area * 10)  # ha를 10a로 변환
+        # 예상 수확량 계산
+        base = base_yield.get(crop_type, {}).get(cultivation_type, 2000)
+        predicted_yield = base * avg_growth_score * area
         
-        return total_yield
+        return predicted_yield
         
     except Exception as e:
         print(f"작물 수확량 예측 중 오류 발생: {e}")
-        return None 
+        return 1000 * area  # 오류 발생 시 기본값 반환 

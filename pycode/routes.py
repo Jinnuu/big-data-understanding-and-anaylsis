@@ -86,18 +86,20 @@ def predict_crop():
                 'message': '요청 데이터가 없습니다.'
             }), 400
             
+        crop_type = data.get('crop_type')
+        cultivation_type = data.get('cultivation_type')
         location = data.get('location')
-        crop = data.get('crop')
         year = data.get('year')
+        area = data.get('area')
         
-        if not all([location, crop, year]):
+        if not all([crop_type, cultivation_type, location, year, area]):
             return jsonify({
                 'status': 'error',
                 'message': '필수 파라미터가 누락되었습니다.'
             }), 400
         
         # 작물 수확량 예측
-        result = predict_crop_yield(location, crop, year)
+        result = predict_crop_yield(location, crop_type, year, cultivation_type, area)
         if result is None:
             return jsonify({
                 'status': 'error',
@@ -106,7 +108,7 @@ def predict_crop():
             
         return jsonify({
             'status': 'success',
-            'data': result
+            'prediction': float(result)  # numpy.float32를 Python float로 변환
         })
         
     except Exception as e:
