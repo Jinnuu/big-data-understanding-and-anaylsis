@@ -12,6 +12,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // 재배 방식 선택 이벤트 리스너
     document.getElementById('cultivationType').addEventListener('change', updateCropInfo);
 
+    // 작물 정보 가져오기
+    fetch('/api/get_crop_info')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'error') {
+                throw new Error(data.message);
+            }
+            cropInfoCache = data.data;
+        })
+        .catch(error => {
+            console.error('작물 정보를 가져오는 중 오류 발생:', error);
+            showAlert('predictionAlert', '작물, 재배 방식, 지역, 연도, 재배 면적을 선택해주세요.', 'info');
+        });
+
     // 지역 목록 가져오기
     fetch('/api/get_locations')
         .then(response => response.json())
@@ -29,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('지역 목록을 가져오는 중 오류 발생:', error);
-            showAlert('predictionAlert', '지역 목록을 가져오는 중 오류가 발생했습니다.', 'danger');
+            showAlert('predictionAlert', '작물, 재배 방식, 지역, 연도, 재배 면적을 선택해주세요.', 'info');
         });
 
     // 지역별 예상 수량 폼 제출 처리
@@ -87,9 +101,8 @@ function handleCropChange(event) {
     cultivationTypeSelect.innerHTML = '<option value="">재배 방식을 선택하세요</option>';
     
     if (!cropType) {
-        document.getElementById('cropInfo').innerHTML = `
-            <p class="mt-2">작물을 선택하면 재배 조건 정보를 확인할 수 있습니다.</p>
-        `;
+        document.getElementById('cropInfo').innerHTML = '';
+        document.getElementById('cropWeatherInfo').style.display = 'none';
         return;
     }
     
@@ -111,28 +124,58 @@ function updateCropInfo() {
     const cropType = document.getElementById('cropType').value;
     const cultivationType = document.getElementById('cultivationType').value;
     
-    if (!cropType || !cultivationType || !cropInfoCache[cropType]) {
+    if (!cropType || !cultivationType) {
+        document.getElementById('cropWeatherInfo').style.display = 'none';
         return;
     }
-    
+
+    // 작물 정보가 없으면 가져오기
+    if (!cropInfoCache[cropType]) {
+        fetch(`/api/get_crop_info/${cropType}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+                cropInfoCache[cropType] = data.data;
+                displayCropInfo(cropType, cultivationType);
+            })
+            .catch(error => {
+                console.error('작물 정보를 가져오는 중 오류 발생:', error);
+                showAlert('predictionAlert', '작물 정보를 가져오는 중 오류가 발생했습니다.', 'danger');
+            });
+    } else {
+        displayCropInfo(cropType, cultivationType);
+    }
+}
+
+// 작물 정보 표시
+function displayCropInfo(cropType, cultivationType) {
     const cropData = cropInfoCache[cropType];
+    if (!cropData) return;
+
     const tempRange = cropData.temp_ranges[cultivationType];
     const rainRange = cropData.rain_ranges[cultivationType];
     
     document.getElementById('cropInfo').innerHTML = `
-        <div class="row">
-            <div class="col-6">
-                <h6 class="mb-2">적정 생육 온도</h6>
-                <p class="mb-1">최저: ${tempRange[0]}°C</p>
-                <p class="mb-1">최고: ${tempRange[1]}°C</p>
+        <div id="cropWeatherInfo">
+            <h6 class="border-bottom pb-2">취약 기상 조건</h6>
+            <div class="mb-3">
+                <strong>취약 강수량:</strong>
+                <span id="vulnerableRainfall">${rainRange[0]}mm 이하 또는 ${rainRange[1]}mm 이상</span>
             </div>
-            <div class="col-6">
-                <h6 class="mb-2">적정 강수량</h6>
-                <p class="mb-1">최소: ${rainRange[0]}mm</p>
-                <p class="mb-1">최대: ${rainRange[1]}mm</p>
+            <div class="mb-3">
+                <strong>취약 저온:</strong>
+                <span id="vulnerableLowTemp">${tempRange[0]}°C 이하</span>
+            </div>
+            <div class="mb-3">
+                <strong>취약 고온:</strong>
+                <span id="vulnerableHighTemp">${tempRange[1]}°C 이상</span>
             </div>
         </div>
     `;
+    
+    document.getElementById('cropWeatherInfo').style.display = 'block';
 }
 
 // 예측 폼 제출 처리

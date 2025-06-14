@@ -244,7 +244,7 @@ def predict_weather_route():
         
     except Exception as e:
         print(f"날씨 예측 중 오류 발생: {str(e)}")
-        return jsonify({'error': '서버 오류가 발생했습니다.'}), 500
+        return jsonify({'error': '서버 오류가 발생했습니다.'}), 500 
 
 @main_bp.route('/api/policy', methods=['POST'])
 def get_policy_recommendations():
